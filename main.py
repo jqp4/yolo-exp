@@ -1,26 +1,60 @@
 from typing import Dict
 from PIL import Image as PillowImage
+import subprocess
 from flet import *
+import shutil
 import os
 
 
 test_images_folder = "test_images"
 
+input_images_sizes = {}
+
 
 def resize_images(filenames: list, source_folder: str, save_folder: str):
+    global input_images_sizes
+
     save_path = f"./yolov5/data/{test_images_folder}"
     os.makedirs(save_path, exist_ok=True)
+    input_images_sizes = {}
 
-    for image in filenames:
-        img = PillowImage.open(f"{source_folder}/{image}")
+    for filename in filenames:
+        img = PillowImage.open(f"{source_folder}/{filename}")
+        input_images_sizes[f"{filename}"] = img.size
+
         resized_img = img.resize((640, 480))
-        # resized_img.save(
-        #     source_folder + "/yolov5/data/" + save_folder + "/images/" + image
-        # )
-        resized_img.save(f"{save_path}/{image}")
+        resized_img.save(f"{save_path}/{filename}")
+
+    print("input_images_sizes: ", input_images_sizes)
+
+
+def resize_images_to_original():
+    global input_images_sizes
+
+    print(">>>> in resize_images_to_original")
+    print("input_images_sizes = ", input_images_sizes)
+
+    save_path = "./result_images"
+    os.makedirs(save_path, exist_ok=True)
+    # shutil.rmtree("./yolov5/runs/detect/*")
+
+    for filename in input_images_sizes.keys():
+        print(f"processing {filename}")
+        image = PillowImage.open(f"./yolov5/runs/detect/expTestImage/{filename}")
+
+        original_size = input_images_sizes[f"{filename}"]
+        original_size_image = image.resize(original_size)
+        original_size_image.save(f"{save_path}/{filename}")
+
+    print(">>>> out resize_images_to_original")
+
+
+
 
 
 def main(page: Page):
+    global input_images_sizes
+
     prog_bars: Dict[str, ProgressRing] = {}
     files = Ref[Column]()
     upload_button = Ref[ElevatedButton]()
@@ -40,14 +74,50 @@ def main(page: Page):
         prog_bars[e.file_name].value = e.progress
         prog_bars[e.file_name].update()
 
+    input_images_container = Ref[Row]()
+    output_images_container = Ref[Row]()
+
+    def fill_input_images_conteiner():
+        global input_images_sizes
+
+        input_images_container.current.controls.clear()
+        output_images_container.current.controls.clear()
+
+        for filename in input_images_sizes.keys():
+            input_image_object = Image(
+                src=f"./uploads/{filename}",
+                width=400,
+                # height=400,
+                fit=ImageFit.CONTAIN,
+                repeat=ImageRepeat.NO_REPEAT,
+                border_radius=border_radius.all(10),
+            )
+
+            input_images_container.current.controls.append(input_image_object)
+
+    def fill_output_images_conteiner():
+        global input_images_sizes
+
+        output_images_container.current.controls.clear()
+
+        for filename in input_images_sizes.keys():
+            output_image_object = Image(
+                src=f"./result_images/{filename}",
+                width=400,
+                # height=400,
+                fit=ImageFit.CONTAIN,
+                repeat=ImageRepeat.NO_REPEAT,
+                border_radius=border_radius.all(10),
+            )
+
+            output_images_container.current.controls.append(output_image_object)
+
     file_picker = FilePicker(on_result=file_picker_result, on_upload=on_upload_progress)
-    imageContainer = Ref[Row]()
 
     def upload_files(e):
         uf = []
 
         if file_picker.result is not None and file_picker.result.files is not None:
-            filename = file_picker.result.files[0].name
             filenames = [fileinfo.name for fileinfo in file_picker.result.files]
 
             for f in file_picker.result.files:
@@ -57,25 +127,28 @@ def main(page: Page):
                         upload_url=page.get_upload_url(f.name, 600),
                     )
                 )
+
             file_picker.upload(uf)
 
-            img = Image(
-                src=filename,
-                width=400,
-                height=400,
-                fit=ImageFit.CONTAIN,
-                repeat=ImageRepeat.NO_REPEAT,
-                border_radius=border_radius.all(10),
-            )
-
-            print(filenames)
-
-            # ресайзим
+            # ресайзим и сохраняем в ./yolov5/data/test_images
             resize_images(filenames, "uploads", "")
 
-            imageContainer.current.controls.clear()
-            imageContainer.current.controls.append(img)
+            # заполняем картинками результирующую табличку
+            fill_input_images_conteiner()
             page.update()
+            
+    def run_detect():
+        shutil.rmtree("./yolov5/runs/detect")
+        command = "python3 ./yolov5/detect.py --source ./yolov5/data/test_images/ --weight ./yolov5_weights/yolov5s.pt --name expTestImage --conf 0.4"
+        result = subprocess.run(command.split(), stderr=subprocess.PIPE, text=True)
+        print("subprocess.run stderr: ", result.stderr)
+
+        # ресайзим картинки обратно
+        resize_images_to_original()
+
+        # заполняем картинками результирующую табличку
+        fill_output_images_conteiner()
+        page.update()
 
     # hide dialog in a overlay
     page.overlay.append(file_picker)
@@ -94,7 +167,14 @@ def main(page: Page):
             on_click=upload_files,
             disabled=True,
         ),
-        Row(ref=imageContainer),
+        ElevatedButton(
+            "Run detect.py",
+            on_click=lambda _: run_detect(),
+        ),
+        Text(value=f"input images ({len(input_images_sizes)}):"),
+        Row(ref=input_images_container),
+        Text(value=f"output images ({len(input_images_sizes)}):"),
+        Row(ref=output_images_container),
     )
 
     # imageContainer.current.controls.clear()
@@ -102,4 +182,4 @@ def main(page: Page):
     # page.update()
 
 
-app(target=main, upload_dir="uploads", assets_dir="uploads", view=WEB_BROWSER)
+app(target=main, upload_dir="uploads", assets_dir=".", view=WEB_BROWSER)
