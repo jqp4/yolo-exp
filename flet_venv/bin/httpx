@@ -1,9 +1,9 @@
-#!/Users/gleb/Projects/yolo-exp/flet_try/flet_venv/bin/python3
+#!/Users/gleb/Projects/yolo-exp/flet_venv/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys
 
-from pip._internal import main
+from httpx import main
 
 if __name__ == '__main__':
     sys.argv[0] = re.sub(r'(-script\.pyw?|\.exe)?$', '', sys.argv[0])

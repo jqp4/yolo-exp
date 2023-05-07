@@ -37,7 +37,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="/Users/gleb/Projects/yolo-exp/flet_try/flet_venv"
+VIRTUAL_ENV="/Users/gleb/Projects/yolo-exp/flet_venv"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"
