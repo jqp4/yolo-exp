@@ -1,7 +1,23 @@
 from typing import Dict
-from PIL import Image
+from PIL import Image as PillowImage
 from flet import *
 import os
+
+
+test_images_folder = "test_images"
+
+
+def resize_images(filenames: list, source_folder: str, save_folder: str):
+    save_path = f"./yolov5/data/{test_images_folder}"
+    os.makedirs(save_path, exist_ok=True)
+
+    for image in filenames:
+        img = PillowImage.open(f"{source_folder}/{image}")
+        resized_img = img.resize((640, 480))
+        # resized_img.save(
+        #     source_folder + "/yolov5/data/" + save_folder + "/images/" + image
+        # )
+        resized_img.save(f"{save_path}/{image}")
 
 
 def main(page: Page):
@@ -32,6 +48,7 @@ def main(page: Page):
 
         if file_picker.result is not None and file_picker.result.files is not None:
             filename = file_picker.result.files[0].name
+            filenames = [fileinfo.name for fileinfo in file_picker.result.files]
 
             for f in file_picker.result.files:
                 uf.append(
@@ -50,7 +67,11 @@ def main(page: Page):
                 repeat=ImageRepeat.NO_REPEAT,
                 border_radius=border_radius.all(10),
             )
-            print(img.src)
+
+            print(filenames)
+
+            # ресайзим
+            resize_images(filenames, "uploads", "")
 
             imageContainer.current.controls.clear()
             imageContainer.current.controls.append(img)
