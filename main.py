@@ -7,11 +7,10 @@ import os
 
 
 test_images_folder = "test_images"
-
 input_images_sizes = {}
 
 
-def resize_images(filenames: list, source_folder: str, save_folder: str):
+def resize_images(filenames: list):
     global input_images_sizes
 
     save_path = f"./yolov5/data/{test_images_folder}"
@@ -19,7 +18,9 @@ def resize_images(filenames: list, source_folder: str, save_folder: str):
     input_images_sizes = {}
 
     for filename in filenames:
-        img = PillowImage.open(f"{source_folder}/{filename}")
+        shutil.move(f"./uploads/{filename}", "./assets/input_images")
+
+        img = PillowImage.open(f"./assets/input_images/{filename}")
         input_images_sizes[f"{filename}"] = img.size
 
         resized_img = img.resize((640, 480))
@@ -34,9 +35,7 @@ def resize_images_to_original():
     print(">>>> in resize_images_to_original")
     print("input_images_sizes = ", input_images_sizes)
 
-    save_path = "./result_images"
-    os.makedirs(save_path, exist_ok=True)
-    # shutil.rmtree("./yolov5/runs/detect/*")
+    save_path = "./assets/result_images"
 
     for filename in input_images_sizes.keys():
         print(f"processing {filename}")
@@ -49,7 +48,11 @@ def resize_images_to_original():
     print(">>>> out resize_images_to_original")
 
 
-
+def clear_assets_folder():
+    shutil.rmtree("./assets/input_images", ignore_errors=True)
+    shutil.rmtree("./assets/result_images", ignore_errors=True)
+    os.makedirs("./assets/input_images", exist_ok=True)
+    os.makedirs("./assets/result_images", exist_ok=True)
 
 
 def main(page: Page):
@@ -85,7 +88,7 @@ def main(page: Page):
 
         for filename in input_images_sizes.keys():
             input_image_object = Image(
-                src=f"./uploads/{filename}",
+                src=f"./assets/input_images/{filename}",
                 width=400,
                 # height=400,
                 fit=ImageFit.CONTAIN,
@@ -102,7 +105,7 @@ def main(page: Page):
 
         for filename in input_images_sizes.keys():
             output_image_object = Image(
-                src=f"./result_images/{filename}",
+                src=f"./assets/result_images/{filename}",
                 width=400,
                 # height=400,
                 fit=ImageFit.CONTAIN,
@@ -130,16 +133,19 @@ def main(page: Page):
 
             file_picker.upload(uf)
 
+            # удаляем старые данные
+            clear_assets_folder()
+
             # ресайзим и сохраняем в ./yolov5/data/test_images
-            resize_images(filenames, "uploads", "")
+            resize_images(filenames)
 
             # заполняем картинками результирующую табличку
             fill_input_images_conteiner()
             page.update()
-            
+
     def run_detect():
-        shutil.rmtree("./yolov5/runs/detect")
-        command = "python3 ./yolov5/detect.py --source ./yolov5/data/test_images/ --weight ./yolov5_weights/yolov5s.pt --name expTestImage --conf 0.4"
+        shutil.rmtree("./yolov5/runs/detect", ignore_errors=True)
+        command = "python3 ./yolov5/detect.py --source ./yolov5/data/test_images/ --weight ./yolov5_weights/yolov5_mask_detection.onnx --name expTestImage --conf 0.4"
         result = subprocess.run(command.split(), stderr=subprocess.PIPE, text=True)
         print("subprocess.run stderr: ", result.stderr)
 
@@ -182,4 +188,4 @@ def main(page: Page):
     # page.update()
 
 
-app(target=main, upload_dir="uploads", assets_dir=".", view=WEB_BROWSER)
+app(target=main, upload_dir="uploads", assets_dir="assets", view=WEB_BROWSER)
