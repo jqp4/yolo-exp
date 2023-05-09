@@ -4,7 +4,7 @@ import subprocess
 from flet import *
 import shutil
 import os
-
+import time
 
 test_images_folder = "test_images"
 input_images_sizes = {}
@@ -12,15 +12,22 @@ input_images_sizes = {}
 
 def resize_images(filenames: list):
     global input_images_sizes
+    # print(f">> {os.getcwd()}")
 
-    save_path = f"./yolov5/data/{test_images_folder}"
+    save_path = f"yolov5/data/{test_images_folder}"
     os.makedirs(save_path, exist_ok=True)
     input_images_sizes = {}
 
     for filename in filenames:
-        shutil.move(f"./uploads/{filename}", "./assets/input_images")
+        result_of_move = False
+        while not result_of_move:
+            try:
+                shutil.move(f"uploads/{filename}", "assets/input_images")
+                result_of_move = True
+            except:
+                time.sleep(0.01)
 
-        img = PillowImage.open(f"./assets/input_images/{filename}")
+        img = PillowImage.open(f"assets/input_images/{filename}")
         input_images_sizes[f"{filename}"] = img.size
 
         resized_img = img.resize((640, 480))
@@ -35,11 +42,11 @@ def resize_images_to_original():
     print(">>>> in resize_images_to_original")
     print("input_images_sizes = ", input_images_sizes)
 
-    save_path = "./assets/result_images"
+    save_path = "assets/result_images"
 
     for filename in input_images_sizes.keys():
         print(f"processing {filename}")
-        image = PillowImage.open(f"./yolov5/runs/detect/expTestImage/{filename}")
+        image = PillowImage.open(f"yolov5/runs/detect/expTestImage/{filename}")
 
         original_size = input_images_sizes[f"{filename}"]
         original_size_image = image.resize(original_size)
@@ -49,10 +56,10 @@ def resize_images_to_original():
 
 
 def clear_assets_folder():
-    shutil.rmtree("./assets/input_images", ignore_errors=True)
-    shutil.rmtree("./assets/result_images", ignore_errors=True)
-    os.makedirs("./assets/input_images", exist_ok=True)
-    os.makedirs("./assets/result_images", exist_ok=True)
+    shutil.rmtree("assets/input_images", ignore_errors=True)
+    shutil.rmtree("assets/result_images", ignore_errors=True)
+    os.makedirs("assets/input_images", exist_ok=True)
+    os.makedirs("assets/result_images", exist_ok=True)
 
 
 def main(page: Page):
@@ -88,9 +95,8 @@ def main(page: Page):
 
         for filename in input_images_sizes.keys():
             input_image_object = Image(
-                src=f"./assets/input_images/{filename}",
+                src=f"input_images/{filename}",
                 width=400,
-                # height=400,
                 fit=ImageFit.CONTAIN,
                 repeat=ImageRepeat.NO_REPEAT,
                 border_radius=border_radius.all(10),
@@ -105,9 +111,8 @@ def main(page: Page):
 
         for filename in input_images_sizes.keys():
             output_image_object = Image(
-                src=f"./assets/result_images/{filename}",
+                src=f"result_images/{filename}",
                 width=400,
-                # height=400,
                 fit=ImageFit.CONTAIN,
                 repeat=ImageRepeat.NO_REPEAT,
                 border_radius=border_radius.all(10),
@@ -144,7 +149,7 @@ def main(page: Page):
             page.update()
 
     def run_detect():
-        shutil.rmtree("./yolov5/runs/detect", ignore_errors=True)
+        shutil.rmtree("yolov5/runs/detect", ignore_errors=True)
         command = "python3 ./yolov5/detect.py --source ./yolov5/data/test_images/ --weight ./yolov5_weights/yolov5_mask_detection.onnx --name expTestImage --conf 0.4"
         result = subprocess.run(command.split(), stderr=subprocess.PIPE, text=True)
         print("subprocess.run stderr: ", result.stderr)
@@ -177,9 +182,9 @@ def main(page: Page):
             "Run detect.py",
             on_click=lambda _: run_detect(),
         ),
-        Text(value=f"input images ({len(input_images_sizes)}):"),
+        Text(value=f"input images:"),
         Row(ref=input_images_container),
-        Text(value=f"output images ({len(input_images_sizes)}):"),
+        Text(value=f"output images:"),
         Row(ref=output_images_container),
     )
 
